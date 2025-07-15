@@ -32,6 +32,7 @@
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         @keyframes gradient-bg {
@@ -182,6 +183,14 @@
             z-index: 10;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
+
+        .score-update {
+            animation: score-pop 0.3s ease-out;
+        }
+        @keyframes score-pop {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); color: var(--accent-color-2); }
+        }
         
         #player-photo-ingame {
             width: 60px;
@@ -217,11 +226,11 @@
         .tile {
             position: absolute;
             width: 25%;
-            height: 150px;
+            height: 180px; /* Increased tile height */
             border: 2px solid rgba(255,255,255,0.5);
             border-radius: 10px;
             box-sizing: border-box;
-            transition: top 0.1s linear;
+            will-change: transform; /* Performance hint */
         }
         .tile.color-1 { background: linear-gradient(180deg, #ff7e5f, #feb47b); } /* Orange/Peach */
         .tile.color-2 { background: linear-gradient(180deg, #6a11cb, #2575fc); } /* Purple/Blue */
@@ -231,8 +240,8 @@
         /* Particle effect for tapped tiles */
         .particle {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             z-index: 20;
             animation: fly-out 0.5s ease-out forwards;
@@ -242,12 +251,30 @@
             0% { transform: translate(0, 0) scale(1); opacity: 1; }
             100% { transform: var(--transform-end) scale(0); opacity: 0; }
         }
+        
+        /* Visual feedback for taps */
+        .tap-ripple {
+            position: absolute;
+            bottom: 10%;
+            width: 25%;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            opacity: 0;
+            transform: scale(0.5);
+            animation: ripple-out 0.3s ease-out;
+        }
+        
+        @keyframes ripple-out {
+            from { transform: scale(0.5); opacity: 1; }
+            to { transform: scale(1.2); opacity: 0; }
+        }
 
         #tap-zone {
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 20%;
+            height: 25%; /* More generous tap zone */
             background: linear-gradient(0deg, rgba(255,105,180,0.5), transparent);
             border-top: 3px dashed var(--accent-color-1);
         }
@@ -336,7 +363,7 @@
 
     <!-- Welcome Screen -->
     <div id="welcome-screen" class="screen">
-        <h1 id="game-title">Haarush 7</h1>
+        <h1 id="game-title">Druvan 7</h1>
         <div id="player-photo-preview"></div>
         <label for="image-upload" class="upload-button">Upload Photo</label>
         <input type="file" id="image-upload" accept="image/*" style="display: none;">
@@ -346,7 +373,7 @@
             <div id="song-playlist"></div>
         </div>
 
-        <button id="start-game-btn" class="upload-button" style="display: none;">Start Game</button>
+        <button id="start-game-btn" class="upload-button">Start Game</button>
     </div>
 
     <!-- Game Screen -->
@@ -357,10 +384,6 @@
             <div id="player-photo-ingame"></div>
         </div>
         <div id="game-area">
-            <div class="lane" data-lane="0"></div>
-            <div class="lane" data-lane="1"></div>
-            <div class="lane" data-lane="2"></div>
-            <div class="lane" data-lane="3"></div>
             <div id="tap-zone"></div>
         </div>
         <div id="feedback-text"></div>
@@ -398,19 +421,26 @@
             const finalScoreDisplay = document.getElementById('final-score');
             const playAgainBtn = document.getElementById('play-again-btn');
 
-            // --- Game State ---
+            // --- Game Constants and State ---
+            const TILE_HEIGHT = 180;
+            const MAX_MISS_STREAK = 5;
             let score = 0;
             let combo = 0;
             let missStreak = 0;
-            const MAX_MISS_STREAK = 5;
             let tiles = [];
-            let gameInterval;
-            let tileSpeed = 2;
-            let tileSpawnRate = 1000;
+            let gameLoopId;
+            let tileSpeed = 2.5;
+            let tileSpawnRate = 900;
+            let lastTime = 0;
+            let currentLevel = 1;
             let playerData = {
-                image: 'https://placehold.co/150x150/FF69B4/FFFFFF?text=H7',
+                image: 'https://placehold.co/150x150/FF69B4/FFFFFF?text=D7',
                 songs: new Array(5).fill(null),
-                selectedSongIndex: null
+                selectedSongIndex: null,
+                defaultSong: {
+                    name: "Default Tune",
+                    url: "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                }
             };
 
             // --- Audio Context for Sound Effects ---
@@ -503,7 +533,6 @@
                         name: file.name,
                         url: URL.createObjectURL(file)
                     };
-                    // If no song is selected, select this one automatically
                     if (playerData.selectedSongIndex === null) {
                         selectSong(index);
                     }
@@ -513,8 +542,6 @@
             
             const selectSong = (index) => {
                 playerData.selectedSongIndex = index;
-                bgMusic.src = playerData.songs[index].url;
-                startGameBtn.style.display = 'inline-block';
                 renderSongList();
             };
 
@@ -527,16 +554,20 @@
             // --- Game Logic ---
             const startGame = () => {
                 initAudioContext();
-                if (playerData.selectedSongIndex === null) {
-                    alert("Please select a song to start the game!");
-                    return;
+                
+                if (playerData.selectedSongIndex !== null) {
+                    bgMusic.src = playerData.songs[playerData.selectedSongIndex].url;
+                } else {
+                    bgMusic.src = playerData.defaultSong.url;
                 }
                 
                 score = 0;
                 combo = 0;
                 missStreak = 0;
-                tileSpeed = 2;
-                tileSpawnRate = 1000;
+                currentLevel = 1;
+                tileSpeed = 2.5;
+                tileSpawnRate = 900;
+                lastTime = 0;
                 tiles.forEach(tile => tile.element.remove());
                 tiles = [];
                 updateUI();
@@ -546,14 +577,14 @@
                 bgMusic.play();
                 
                 spawnBackgroundShapes();
-                gameInterval = setInterval(gameLoop, 16);
+                gameLoopId = requestAnimationFrame(gameLoop);
                 setTimeout(spawnTile, tileSpawnRate);
 
                 bgMusic.onended = endGame;
             };
             
             const endGame = () => {
-                clearInterval(gameInterval);
+                cancelAnimationFrame(gameLoopId);
                 bgMusic.pause();
                 finalScoreDisplay.textContent = score;
                 showScreen(endScreen);
@@ -566,22 +597,24 @@
                 const colorClass = `color-${Math.floor(Math.random() * 4) + 1}`;
                 tileElement.className = `tile ${colorClass}`;
                 tileElement.style.left = `${laneIndex * 25}%`;
-                tileElement.style.top = '-150px';
+                tileElement.style.transform = `translateY(-${TILE_HEIGHT}px)`;
                 
-                const tile = { element: tileElement, lane: laneIndex, position: -150 };
+                const tile = { element: tileElement, lane: laneIndex, position: -TILE_HEIGHT };
                 tiles.push(tile);
-                gameArea.appendChild(tileElement);
+                gameArea.insertBefore(tileElement, gameArea.firstChild);
                 
-                tileSpeed += 0.05;
-                tileSpawnRate = Math.max(300, tileSpawnRate * 0.99);
                 setTimeout(spawnTile, tileSpawnRate);
             };
             
-            const gameLoop = () => {
+            const gameLoop = (timestamp) => {
+                if (!lastTime) lastTime = timestamp;
+                const deltaTime = timestamp - lastTime;
+                lastTime = timestamp;
+
                 for (let i = tiles.length - 1; i >= 0; i--) {
                     const tile = tiles[i];
-                    tile.position += tileSpeed;
-                    tile.element.style.top = `${tile.position}px`;
+                    tile.position += tileSpeed * (deltaTime / 16.67);
+                    tile.element.style.transform = `translateY(${tile.position}px)`;
 
                     if (tile.position > gameArea.clientHeight) {
                         miss();
@@ -589,22 +622,34 @@
                         tiles.splice(i, 1);
                     }
                 }
+                gameLoopId = requestAnimationFrame(gameLoop);
             };
 
-            const handleTap = (e) => {
-                const lane = e.target.dataset.lane;
-                if (lane === undefined) return;
+            const processInput = (x, y) => {
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                if (x < gameAreaRect.left || x > gameAreaRect.right || y < gameAreaRect.top || y > gameAreaRect.bottom) {
+                    return;
+                }
+
+                const laneWidth = gameAreaRect.width / 4;
+                const lane = Math.floor((x - gameAreaRect.left) / laneWidth);
+
+                const ripple = document.createElement('div');
+                ripple.className = 'tap-ripple';
+                ripple.style.left = `${lane * 25}%`;
+                gameArea.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 300);
 
                 const tapZoneBottom = gameArea.clientHeight;
-                const tapZoneTop = tapZoneBottom * 0.8;
+                const tapZoneTop = tapZoneBottom * 0.75;
                 
                 let tappedTile = null;
                 let tappedTileIndex = -1;
 
                 for (let i = 0; i < tiles.length; i++) {
                     const tile = tiles[i];
-                    if (tile.lane == lane) {
-                        const tileBottom = tile.position + 150;
+                    if (tile.lane === lane) {
+                        const tileBottom = tile.position + TILE_HEIGHT;
                         if (tileBottom > tapZoneTop && tile.position < tapZoneBottom) {
                             tappedTile = tile;
                             tappedTileIndex = i;
@@ -628,6 +673,7 @@
                 createParticles(tile.element);
                 tile.element.remove();
                 updateUI();
+                checkLevelUp();
             };
 
             const miss = () => {
@@ -644,6 +690,16 @@
                 }
             };
             
+            const checkLevelUp = () => {
+                const level = Math.floor(score / 500) + 1;
+                if (level > currentLevel) {
+                    currentLevel = level;
+                    tileSpeed += 0.5;
+                    tileSpawnRate = Math.max(250, tileSpawnRate * 0.9);
+                    showFeedback(`Level ${currentLevel}!`);
+                }
+            };
+
             const showFeedback = (text) => {
                 feedbackText.textContent = text;
                 feedbackText.classList.add('show');
@@ -652,13 +708,15 @@
 
             const updateUI = () => {
                 scoreDisplay.textContent = `Score: ${score}`;
+                scoreDisplay.classList.add('score-update');
+                setTimeout(() => scoreDisplay.classList.remove('score-update'), 300);
                 comboDisplay.textContent = `Combo: ${combo}`;
             };
             
             const createParticles = (tileElement) => {
                 const rect = tileElement.getBoundingClientRect();
                 const tileColor = window.getComputedStyle(tileElement).backgroundImage;
-                for (let i = 0; i < 15; i++) {
+                for (let i = 0; i < 10; i++) {
                     const particle = document.createElement('div');
                     particle.className = 'particle';
                     particle.style.background = tileColor;
@@ -669,7 +727,7 @@
                     particle.style.top = `${y}px`;
                     
                     const angle = Math.random() * 360;
-                    const distance = Math.random() * 50 + 50;
+                    const distance = Math.random() * 40 + 40;
                     const endX = Math.cos(angle * Math.PI / 180) * distance;
                     const endY = Math.sin(angle * Math.PI / 180) * distance;
                     
@@ -682,14 +740,14 @@
             const spawnBackgroundShapes = () => {
                 backgroundAnimation.innerHTML = '';
                 const shapes = ['♫', '♪', '⭐', '✨', '❤️'];
-                for (let i = 0; i < 20; i++) {
+                for (let i = 0; i < 15; i++) {
                     const shape = document.createElement('div');
                     shape.className = 'bg-shape';
                     shape.textContent = shapes[Math.floor(Math.random() * shapes.length)];
                     shape.style.left = `${Math.random() * 100}vw`;
-                    shape.style.fontSize = `${Math.random() * 40 + 20}px`;
-                    shape.style.animationDuration = `${Math.random() * 15 + 10}s`;
-                    shape.style.animationDelay = `${Math.random() * 10}s`;
+                    shape.style.fontSize = `${Math.random() * 30 + 15}px`;
+                    shape.style.animationDuration = `${Math.random() * 15 + 15}s`;
+                    shape.style.animationDelay = `${Math.random() * 15}s`;
                     backgroundAnimation.appendChild(shape);
                 }
             };
@@ -700,14 +758,13 @@
                 showScreen(welcomeScreen);
             });
             
-            gameArea.addEventListener('click', handleTap);
+            gameArea.addEventListener('mousedown', (e) => {
+                processInput(e.clientX, e.clientY);
+            });
             gameArea.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
-                const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (target && target.classList.contains('lane')) {
-                    handleTap({ target });
-                }
+                processInput(touch.clientX, touch.clientY);
             }, { passive: false });
 
             // --- Initial Setup ---
