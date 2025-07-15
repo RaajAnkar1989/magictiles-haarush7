@@ -212,17 +212,6 @@
             background: rgba(0,0,0,0.1);
         }
 
-        .lane {
-            width: 25%;
-            height: 100%;
-            float: left;
-            box-sizing: border-box;
-            border-right: 1px solid rgba(255,255,255,0.2);
-        }
-        .lane:last-child {
-            border-right: none;
-        }
-
         .tile {
             position: absolute;
             width: 25%;
@@ -270,15 +259,6 @@
             to { transform: scale(1.2); opacity: 0; }
         }
 
-        #tap-zone {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            height: 25%; /* More generous tap zone */
-            background: linear-gradient(0deg, rgba(255,105,180,0.5), transparent);
-            border-top: 3px dashed var(--accent-color-1);
-        }
-
         #feedback-text {
             position: absolute;
             top: 50%;
@@ -319,11 +299,33 @@
             font-size: 4rem;
             color: var(--text-color);
             text-shadow: 3px 3px 0 var(--accent-color-1);
+            position: relative;
+        }
+        #end-screen p {
+            font-size: 1.5rem;
+            color: var(--text-color);
+            text-shadow: 1px 1px 2px #000;
         }
         
         #final-score {
             font-size: 3rem;
             color: var(--accent-color-2);
+        }
+        
+        #high-score-display {
+            font-size: 1.5rem;
+            margin-top: 10px;
+        }
+        
+        #new-high-score-text {
+            color: var(--accent-color-2);
+            font-family: var(--font-header);
+            animation: new-high-score-anim 1s infinite alternate;
+        }
+
+        @keyframes new-high-score-anim {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
         }
         
         #play-again-btn {
@@ -379,12 +381,13 @@
     <!-- Game Screen -->
     <div id="game-screen" class="screen hidden">
         <div id="game-ui">
+            <div id="level-display">Level: 1</div>
             <div id="score-display">Score: 0</div>
             <div id="combo-display">Combo: 0</div>
             <div id="player-photo-ingame"></div>
         </div>
         <div id="game-area">
-            <div id="tap-zone"></div>
+            <!-- Tiles are dynamically added here -->
         </div>
         <div id="feedback-text"></div>
     </div>
@@ -394,6 +397,7 @@
         <h2>Game Over!</h2>
         <p>Your Final Score:</p>
         <p id="final-score">0</p>
+        <p id="high-score-display">High Score: 0</p>
         <button id="play-again-btn" class="upload-button">Play Again</button>
     </div>
 
@@ -415,10 +419,12 @@
             const gameArea = document.getElementById('game-area');
             const scoreDisplay = document.getElementById('score-display');
             const comboDisplay = document.getElementById('combo-display');
+            const levelDisplay = document.getElementById('level-display');
             const feedbackText = document.getElementById('feedback-text');
             const bgMusic = document.getElementById('bg-music');
             
             const finalScoreDisplay = document.getElementById('final-score');
+            const highScoreDisplay = document.getElementById('high-score-display');
             const playAgainBtn = document.getElementById('play-again-btn');
 
             // --- Game Constants and State ---
@@ -427,6 +433,7 @@
             let score = 0;
             let combo = 0;
             let missStreak = 0;
+            let highScore = localStorage.getItem('haarush7HighScore') || 0;
             let tiles = [];
             let gameLoopId;
             let tileSpeed = 2.5;
@@ -586,7 +593,17 @@
             const endGame = () => {
                 cancelAnimationFrame(gameLoopId);
                 bgMusic.pause();
+                
                 finalScoreDisplay.textContent = score;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('haarush7HighScore', highScore);
+                    highScoreDisplay.innerHTML = `NEW High Score: ${highScore} <span id="new-high-score-text">🎉</span>`;
+                    celebrate();
+                } else {
+                    highScoreDisplay.textContent = `High Score: ${highScore}`;
+                }
+                
                 showScreen(endScreen);
             };
             
@@ -639,28 +656,20 @@
                 ripple.style.left = `${lane * 25}%`;
                 gameArea.appendChild(ripple);
                 setTimeout(() => ripple.remove(), 300);
-
-                const tapZoneBottom = gameArea.clientHeight;
-                const tapZoneTop = tapZoneBottom * 0.75;
                 
-                let tappedTile = null;
-                let tappedTileIndex = -1;
-
-                for (let i = 0; i < tiles.length; i++) {
-                    const tile = tiles[i];
+                let lowestTileInLane = null;
+                
+                for (const tile of tiles) {
                     if (tile.lane === lane) {
-                        const tileBottom = tile.position + TILE_HEIGHT;
-                        if (tileBottom > tapZoneTop && tile.position < tapZoneBottom) {
-                            tappedTile = tile;
-                            tappedTileIndex = i;
-                            break;
+                        if (!lowestTileInLane || tile.position > lowestTileInLane.position) {
+                            lowestTileInLane = tile;
                         }
                     }
                 }
 
-                if (tappedTile) {
-                    hit(tappedTile);
-                    tiles.splice(tappedTileIndex, 1);
+                if (lowestTileInLane) {
+                    hit(lowestTileInLane);
+                    tiles = tiles.filter(t => t !== lowestTileInLane);
                 }
             };
 
@@ -711,6 +720,7 @@
                 scoreDisplay.classList.add('score-update');
                 setTimeout(() => scoreDisplay.classList.remove('score-update'), 300);
                 comboDisplay.textContent = `Combo: ${combo}`;
+                levelDisplay.textContent = `Level: ${currentLevel}`;
             };
             
             const createParticles = (tileElement) => {
@@ -749,6 +759,29 @@
                     shape.style.animationDuration = `${Math.random() * 15 + 15}s`;
                     shape.style.animationDelay = `${Math.random() * 15}s`;
                     backgroundAnimation.appendChild(shape);
+                }
+            };
+            
+            const celebrate = () => {
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const particle = document.createElement('div');
+                        particle.className = 'particle';
+                        const colors = ['#ff7e5f', '#6a11cb', '#38ef7d', '#ff69b4'];
+                        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                        
+                        particle.style.left = `${Math.random() * 100}vw`;
+                        particle.style.top = `${Math.random() * 100}vh`;
+                        
+                        const angle = Math.random() * 360;
+                        const distance = Math.random() * 100 + 80;
+                        const endX = Math.cos(angle * Math.PI / 180) * distance;
+                        const endY = Math.sin(angle * Math.PI / 180) * distance;
+                        
+                        particle.style.setProperty('--transform-end', `translate(${endX}px, ${endY}px)`);
+                        document.body.appendChild(particle);
+                        setTimeout(() => particle.remove(), 1000);
+                    }, Math.random() * 500);
                 }
             };
             
