@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Haarush 7</title>
+    <style>
+        /* --- Basic Setup & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Patrick+Hand&display=swap');
+
+        :root {
+            --bg-color-1: #6DD5FA;
+            --bg-color-2: #FF758C;
+            --tile-color: #333;
+            --accent-color-1: #FF69B4; /* Hot Pink */
+            --accent-color-2: #FFD700; /* Gold */
+            --text-color: #fff;
+            --font-header: 'Fredoka One', cursive;
+            --font-body: 'Patrick Hand', cursive;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(45deg, var(--bg-color-1), var(--bg-color-2));
+            background-size: 400% 400%;
+            animation: gradient-bg 15s ease infinite;
+            font-family: var(--font-body);
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        @keyframes gradient-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- Screen Containers --- */
+        .screen {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+        }
+
+        /* --- Welcome Screen --- */
+        #welcome-screen {
+            text-align: center;
+        }
+
+        #game-title {
+            font-family: var(--font-header);
+            font-size: clamp(3rem, 15vw, 6rem);
+            color: var(--text-color);
+            text-shadow: 4px 4px 0px var(--accent-color-1);
+            margin-bottom: 20px;
+            animation: bounce-in 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        
+        @keyframes bounce-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        #player-photo-preview {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 5px solid var(--text-color);
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            background-color: rgba(255,255,255,0.3);
+            background-size: cover;
+            background-position: center;
+            margin: 0 auto 20px;
+        }
+
+        .upload-button {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2rem;
+            font-family: var(--font-header);
+            color: var(--accent-color-1);
+            background-color: var(--text-color);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .upload-button:hover {
+            transform: scale(1.1);
+        }
+        
+        #start-game-btn {
+            margin-top: 20px;
+            padding: 20px 50px;
+            font-size: 1.5rem;
+            background-color: var(--accent-color-1);
+            color: var(--text-color);
+            border: none;
+        }
+        
+        /* --- Song Playlist --- */
+        #song-list-container {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 20px;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+        }
+        #song-list-container p {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            margin: 0 0 10px 0;
+        }
+        .song-slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.3);
+            margin-bottom: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .song-slot.selected {
+            border-color: var(--accent-color-2);
+            background: rgba(255, 215, 0, 0.3);
+        }
+        .song-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #fff;
+        }
+        .upload-song-btn {
+            padding: 5px 15px;
+            font-size: 0.9rem;
+            background: var(--text-color);
+            color: var(--accent-color-1);
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+
+        /* --- Game Screen --- */
+        #game-screen {
+            justify-content: flex-start;
+        }
+        
+        #game-ui {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            font-family: var(--font-header);
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        #player-photo-ingame {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid var(--text-color);
+            background-size: cover;
+            background-position: center;
+        }
+
+        #game-area {
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            border-left: 2px solid rgba(255,255,255,0.3);
+            border-right: 2px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.1);
+        }
+
+        .lane {
+            width: 25%;
+            height: 100%;
+            float: left;
+            box-sizing: border-box;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+        .lane:last-child {
+            border-right: none;
+        }
+
+        .tile {
+            position: absolute;
+            width: 25%;
+            height: 150px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 10px;
+            box-sizing: border-box;
+            transition: top 0.1s linear;
+        }
+        .tile.color-1 { background: linear-gradient(180deg, #ff7e5f, #feb47b); } /* Orange/Peach */
+        .tile.color-2 { background: linear-gradient(180deg, #6a11cb, #2575fc); } /* Purple/Blue */
+        .tile.color-3 { background: linear-gradient(180deg, #38ef7d, #11998e); } /* Green */
+        .tile.color-4 { background: linear-gradient(180deg, #ff69b4, #ff1493); } /* Pink */
+
+        /* Particle effect for tapped tiles */
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            z-index: 20;
+            animation: fly-out 0.5s ease-out forwards;
+        }
+
+        @keyframes fly-out {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: var(--transform-end) scale(0); opacity: 0; }
+        }
+
+        #tap-zone {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 20%;
+            background: linear-gradient(0deg, rgba(255,105,180,0.5), transparent);
+            border-top: 3px dashed var(--accent-color-1);
+        }
+
+        #feedback-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            font-family: var(--font-header);
+            color: var(--text-color);
+            text-shadow: 3px 3px 0 var(--accent-color-1);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+        }
+
+        #feedback-text.show {
+            opacity: 1;
+            animation: feedback-pop 0.5s ease-out;
+        }
+        
+        @keyframes feedback-pop {
+            0% { transform: translate(-50%, -50%) scale(0.5); }
+            70% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .miss-flash {
+            animation: flash-red 0.3s;
+        }
+        
+        @keyframes flash-red {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(255, 65, 54, 0.5); }
+        }
+
+        /* --- End Screen --- */
+        #end-screen h2 {
+            font-family: var(--font-header);
+            font-size: 4rem;
+            color: var(--text-color);
+            text-shadow: 3px 3px 0 var(--accent-color-1);
+        }
+        
+        #final-score {
+            font-size: 3rem;
+            color: var(--accent-color-2);
+        }
+        
+        #play-again-btn {
+            margin-top: 30px;
+            padding: 20px 50px;
+            font-size: 1.5rem;
+            background-color: var(--accent-color-1);
+            color: var(--text-color);
+            border: none;
+        }
+
+        /* --- Background Animation --- */
+        #background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .bg-shape {
+            position: absolute;
+            bottom: -100px;
+            color: rgba(255, 255, 255, 0.15);
+            animation: float-up 20s linear infinite;
+        }
+        @keyframes float-up {
+            to { transform: translateY(-120vh) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="background-animation"></div>
+    <!-- Audio Element for Music -->
+    <audio id="bg-music" loop></audio>
+
+    <!-- Welcome Screen -->
+    <div id="welcome-screen" class="screen">
+        <h1 id="game-title">Haarush 7</h1>
+        <div id="player-photo-preview"></div>
+        <label for="image-upload" class="upload-button">Upload Photo</label>
+        <input type="file" id="image-upload" accept="image/*" style="display: none;">
+        
+        <div id="song-list-container">
+            <p>Upload up to 5 songs and select one to play!</p>
+            <div id="song-playlist"></div>
+        </div>
+
+        <button id="start-game-btn" class="upload-button" style="display: none;">Start Game</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden">
+        <div id="game-ui">
+            <div id="score-display">Score: 0</div>
+            <div id="combo-display">Combo: 0</div>
+            <div id="player-photo-ingame"></div>
+        </div>
+        <div id="game-area">
+            <div class="lane" data-lane="0"></div>
+            <div class="lane" data-lane="1"></div>
+            <div class="lane" data-lane="2"></div>
+            <div class="lane" data-lane="3"></div>
+            <div id="tap-zone"></div>
+        </div>
+        <div id="feedback-text"></div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="screen hidden">
+        <h2>Game Over!</h2>
+        <p>Your Final Score:</p>
+        <p id="final-score">0</p>
+        <button id="play-again-btn" class="upload-button">Play Again</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const gameScreen = document.getElementById('game-screen');
+            const endScreen = document.getElementById('end-screen');
+            const backgroundAnimation = document.getElementById('background-animation');
+            
+            const imageUpload = document.getElementById('image-upload');
+            const playerPhotoPreview = document.getElementById('player-photo-preview');
+            const playerPhotoIngame = document.getElementById('player-photo-ingame');
+            const startGameBtn = document.getElementById('start-game-btn');
+            
+            const songPlaylist = document.getElementById('song-playlist');
+            
+            const gameArea = document.getElementById('game-area');
+            const scoreDisplay = document.getElementById('score-display');
+            const comboDisplay = document.getElementById('combo-display');
+            const feedbackText = document.getElementById('feedback-text');
+            const bgMusic = document.getElementById('bg-music');
+            
+            const finalScoreDisplay = document.getElementById('final-score');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            // --- Game State ---
+            let score = 0;
+            let combo = 0;
+            let missStreak = 0;
+            const MAX_MISS_STREAK = 5;
+            let tiles = [];
+            let gameInterval;
+            let tileSpeed = 2;
+            let tileSpawnRate = 1000;
+            let playerData = {
+                image: 'https://placehold.co/150x150/FF69B4/FFFFFF?text=H7',
+                songs: new Array(5).fill(null),
+                selectedSongIndex: null
+            };
+
+            // --- Audio Context for Sound Effects ---
+            let audioCtx;
+            const initAudioContext = () => {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            };
+            
+            const playSound = (type) => {
+                if (!audioCtx) return;
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                if (type === 'tap') {
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                } else if (type === 'miss') {
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(110, audioCtx.currentTime); // A2
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                }
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            };
+
+            // --- File Handling ---
+            imageUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        playerData.image = event.target.result;
+                        playerPhotoPreview.style.backgroundImage = `url(${playerData.image})`;
+                        playerPhotoIngame.style.backgroundImage = `url(${playerData.image})`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // --- Song Playlist Logic ---
+            const renderSongList = () => {
+                songPlaylist.innerHTML = '';
+                for (let i = 0; i < 5; i++) {
+                    const song = playerData.songs[i];
+                    const slot = document.createElement('div');
+                    slot.className = 'song-slot';
+                    slot.dataset.index = i;
+
+                    const songName = document.createElement('span');
+                    songName.className = 'song-name';
+                    songName.textContent = song ? song.name : `Slot ${i + 1}: Empty`;
+                    
+                    const uploadLabel = document.createElement('label');
+                    uploadLabel.className = 'upload-song-btn';
+                    uploadLabel.textContent = song ? 'Change' : 'Upload';
+                    uploadLabel.htmlFor = `song-upload-${i}`;
+
+                    const uploadInput = document.createElement('input');
+                    uploadInput.type = 'file';
+                    uploadInput.id = `song-upload-${i}`;
+                    uploadInput.accept = 'audio/mp3';
+                    uploadInput.style.display = 'none';
+
+                    uploadInput.addEventListener('change', (e) => handleSongUpload(e, i));
+                    
+                    slot.appendChild(songName);
+                    slot.appendChild(uploadLabel);
+                    slot.appendChild(uploadInput);
+                    songPlaylist.appendChild(slot);
+                    
+                    if(song) {
+                        slot.addEventListener('click', () => selectSong(i));
+                    }
+                    if(playerData.selectedSongIndex === i) {
+                        slot.classList.add('selected');
+                    }
+                }
+            };
+
+            const handleSongUpload = (e, index) => {
+                const file = e.target.files[0];
+                if (file) {
+                    playerData.songs[index] = {
+                        name: file.name,
+                        url: URL.createObjectURL(file)
+                    };
+                    // If no song is selected, select this one automatically
+                    if (playerData.selectedSongIndex === null) {
+                        selectSong(index);
+                    }
+                    renderSongList();
+                }
+            };
+            
+            const selectSong = (index) => {
+                playerData.selectedSongIndex = index;
+                bgMusic.src = playerData.songs[index].url;
+                startGameBtn.style.display = 'inline-block';
+                renderSongList();
+            };
+
+            // --- Screen Transitions ---
+            const showScreen = (screen) => {
+                [welcomeScreen, gameScreen, endScreen].forEach(s => s.classList.add('hidden'));
+                screen.classList.remove('hidden');
+            };
+
+            // --- Game Logic ---
+            const startGame = () => {
+                initAudioContext();
+                if (playerData.selectedSongIndex === null) {
+                    alert("Please select a song to start the game!");
+                    return;
+                }
+                
+                score = 0;
+                combo = 0;
+                missStreak = 0;
+                tileSpeed = 2;
+                tileSpawnRate = 1000;
+                tiles.forEach(tile => tile.element.remove());
+                tiles = [];
+                updateUI();
+                
+                showScreen(gameScreen);
+                bgMusic.currentTime = 0;
+                bgMusic.play();
+                
+                spawnBackgroundShapes();
+                gameInterval = setInterval(gameLoop, 16);
+                setTimeout(spawnTile, tileSpawnRate);
+
+                bgMusic.onended = endGame;
+            };
+            
+            const endGame = () => {
+                clearInterval(gameInterval);
+                bgMusic.pause();
+                finalScoreDisplay.textContent = score;
+                showScreen(endScreen);
+            };
+            
+            const spawnTile = () => {
+                if (gameScreen.classList.contains('hidden')) return;
+                const laneIndex = Math.floor(Math.random() * 4);
+                const tileElement = document.createElement('div');
+                const colorClass = `color-${Math.floor(Math.random() * 4) + 1}`;
+                tileElement.className = `tile ${colorClass}`;
+                tileElement.style.left = `${laneIndex * 25}%`;
+                tileElement.style.top = '-150px';
+                
+                const tile = { element: tileElement, lane: laneIndex, position: -150 };
+                tiles.push(tile);
+                gameArea.appendChild(tileElement);
+                
+                tileSpeed += 0.05;
+                tileSpawnRate = Math.max(300, tileSpawnRate * 0.99);
+                setTimeout(spawnTile, tileSpawnRate);
+            };
+            
+            const gameLoop = () => {
+                for (let i = tiles.length - 1; i >= 0; i--) {
+                    const tile = tiles[i];
+                    tile.position += tileSpeed;
+                    tile.element.style.top = `${tile.position}px`;
+
+                    if (tile.position > gameArea.clientHeight) {
+                        miss();
+                        tile.element.remove();
+                        tiles.splice(i, 1);
+                    }
+                }
+            };
+
+            const handleTap = (e) => {
+                const lane = e.target.dataset.lane;
+                if (lane === undefined) return;
+
+                const tapZoneBottom = gameArea.clientHeight;
+                const tapZoneTop = tapZoneBottom * 0.8;
+                
+                let tappedTile = null;
+                let tappedTileIndex = -1;
+
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    if (tile.lane == lane) {
+                        const tileBottom = tile.position + 150;
+                        if (tileBottom > tapZoneTop && tile.position < tapZoneBottom) {
+                            tappedTile = tile;
+                            tappedTileIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (tappedTile) {
+                    hit(tappedTile);
+                    tiles.splice(tappedTileIndex, 1);
+                }
+            };
+
+            const hit = (tile) => {
+                playSound('tap');
+                score += 10 + combo;
+                combo++;
+                missStreak = 0;
+                showFeedback("Perfect!");
+                createParticles(tile.element);
+                tile.element.remove();
+                updateUI();
+            };
+
+            const miss = () => {
+                playSound('miss');
+                combo = 0;
+                missStreak++;
+                showFeedback("Miss!");
+                gameArea.classList.add('miss-flash');
+                setTimeout(() => gameArea.classList.remove('miss-flash'), 300);
+                updateUI();
+
+                if (missStreak >= MAX_MISS_STREAK) {
+                    endGame();
+                }
+            };
+            
+            const showFeedback = (text) => {
+                feedbackText.textContent = text;
+                feedbackText.classList.add('show');
+                setTimeout(() => feedbackText.classList.remove('show'), 500);
+            };
+
+            const updateUI = () => {
+                scoreDisplay.textContent = `Score: ${score}`;
+                comboDisplay.textContent = `Combo: ${combo}`;
+            };
+            
+            const createParticles = (tileElement) => {
+                const rect = tileElement.getBoundingClientRect();
+                const tileColor = window.getComputedStyle(tileElement).backgroundImage;
+                for (let i = 0; i < 15; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.background = tileColor;
+                    
+                    const x = rect.left + rect.width / 2;
+                    const y = rect.top + rect.height / 2;
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    
+                    const angle = Math.random() * 360;
+                    const distance = Math.random() * 50 + 50;
+                    const endX = Math.cos(angle * Math.PI / 180) * distance;
+                    const endY = Math.sin(angle * Math.PI / 180) * distance;
+                    
+                    particle.style.setProperty('--transform-end', `translate(${endX}px, ${endY}px)`);
+                    document.body.appendChild(particle);
+                    setTimeout(() => particle.remove(), 500);
+                }
+            };
+
+            const spawnBackgroundShapes = () => {
+                backgroundAnimation.innerHTML = '';
+                const shapes = ['♫', '♪', '⭐', '✨', '❤️'];
+                for (let i = 0; i < 20; i++) {
+                    const shape = document.createElement('div');
+                    shape.className = 'bg-shape';
+                    shape.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+                    shape.style.left = `${Math.random() * 100}vw`;
+                    shape.style.fontSize = `${Math.random() * 40 + 20}px`;
+                    shape.style.animationDuration = `${Math.random() * 15 + 10}s`;
+                    shape.style.animationDelay = `${Math.random() * 10}s`;
+                    backgroundAnimation.appendChild(shape);
+                }
+            };
+            
+            // --- Event Listeners ---
+            startGameBtn.addEventListener('click', startGame);
+            playAgainBtn.addEventListener('click', () => {
+                showScreen(welcomeScreen);
+            });
+            
+            gameArea.addEventListener('click', handleTap);
+            gameArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && target.classList.contains('lane')) {
+                    handleTap({ target });
+                }
+            }, { passive: false });
+
+            // --- Initial Setup ---
+            playerPhotoPreview.style.backgroundImage = `url(${playerData.image})`;
+            playerPhotoIngame.style.backgroundImage = `url(${playerData.image})`;
+            spawnBackgroundShapes();
+            renderSongList();
+        });
+    </script>
+</body>
+</html>
