@@ -427,6 +427,23 @@
     </div>
 
     <!-- Level Complete Screen -->
+        #level-complete-screen h2 {
+            font-size: 4rem;
+            color: var(--accent-color-2);
+            animation: level-complete-bounce 1s ease-in-out;
+        }
+
+        @keyframes level-complete-bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-30px);
+            }
+            60% {
+                transform: translateY(-15px);
+            }
+        }
     <div id="level-complete-screen" class="screen hidden">
         <h2>Level Complete!</h2>
         <p id="level-complete-msg"></p>
@@ -762,6 +779,7 @@
                 if (x < gameAreaRect.left || x > gameAreaRect.right || y < gameAreaRect.top || y > gameAreaRect.bottom) {
                     return;
                 }
+                playSound('tap');
 
                 const laneWidth = gameAreaRect.width / 4;
                 const lane = Math.floor((x - gameAreaRect.left) / laneWidth);
