@@ -363,6 +363,55 @@
         @keyframes float-up {
             to { transform: translateY(-120vh) rotate(360deg); }
         }
+        #welcome-screen {
+            background: rgba(255,255,255,0.05);
+            border-radius: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            padding: 40px 30px 30px 30px;
+            min-width: 320px;
+            min-height: 350px;
+            align-items: center;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #game-title {
+            font-size: clamp(3rem, 10vw, 5rem);
+            color: #fff;
+            text-shadow: 0 4px 24px #FF69B4, 0 1px 0 #FFD700;
+            margin-bottom: 0;
+        }
+        #game-subtitle {
+            font-family: var(--font-body);
+            color: #FFD700;
+            margin-top: 0;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 0 2px 8px #FF69B4;
+        }
+        .home-btn {
+            width: 220px;
+            font-size: 1.3rem;
+            margin: 10px 0;
+            background: linear-gradient(90deg, #FF69B4 0%, #FFD700 100%);
+            color: #fff;
+            border: none;
+            box-shadow: 0 2px 8px #FF69B4;
+        }
+        #settings-screen {
+            background: rgba(255,255,255,0.08);
+            border-radius: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.27);
+            padding: 40px 30px 30px 30px;
+            min-width: 320px;
+            min-height: 350px;
+            align-items: center;
+            justify-content: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -370,19 +419,41 @@
     <!-- Audio Element for Music -->
     <audio id="bg-music" loop></audio>
 
-    <!-- Welcome Screen -->
+    <!-- Level Selection Screen -->
+    <div id="level-select-screen" class="screen hidden">
+        <h2 style="font-family: var(--font-header); color: var(--accent-color-1); margin-bottom: 10px;">Select Level</h2>
+        <div id="level-list" style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;"></div>
+        <button id="back-to-home-from-levels" class="upload-button" style="margin-top: 30px;">Back</button>
+    </div>
+
+    <!-- Level Complete Screen -->
+    <div id="level-complete-screen" class="screen hidden">
+        <h2>Level Complete!</h2>
+        <p id="level-complete-msg"></p>
+        <button id="next-level-btn" class="upload-button">Next Level</button>
+        <button id="replay-level-btn" class="upload-button">Replay Level</button>
+        <button id="to-level-select-btn" class="upload-button">Level Select</button>
+    </div>
+
+    <!-- Welcome Screen (Home) -->
     <div id="welcome-screen" class="screen">
         <h1 id="game-title">Haarush 7</h1>
-        <div id="player-photo-preview"></div>
+        <h2 id="game-subtitle">Tap to the Beat!<span style="font-size:1.5rem; color:#FFD700; margin-left:10px;">🎵</span></h2>
+        <button id="start-game-btn" class="upload-button home-btn">Start Game</button>
+        <button id="open-settings-btn" class="upload-button home-btn">Settings ⚙️</button>
+    </div>
+
+    <!-- Settings Modal/Page -->
+    <div id="settings-screen" class="screen hidden">
+        <h2 style="font-family: var(--font-header); color: var(--accent-color-1); margin-bottom: 10px;">Settings</h2>
+        <div id="player-photo-preview" style="margin-bottom: 10px;"></div>
         <label for="image-upload" class="upload-button">Upload Photo</label>
         <input type="file" id="image-upload" accept="image/*" style="display: none;">
-        
         <div id="song-list-container">
             <p>Upload up to 5 songs and select one to play!</p>
             <div id="song-playlist"></div>
         </div>
-
-        <button id="start-game-btn" class="upload-button">Start Game</button>
+        <button id="close-settings-btn" class="upload-button" style="margin-top: 20px;">Back</button>
     </div>
 
     <!-- Game Screen -->
@@ -392,6 +463,7 @@
             <div id="score-display">Score: 0</div>
             <div id="combo-display">Combo: 0</div>
             <div id="player-photo-ingame"></div>
+            <button id="back-to-home-btn" class="upload-button" style="margin-left: 15px; background: #FFD700; color: #222; font-size: 1rem; padding: 8px 18px;">Back</button>
         </div>
         <div id="game-area">
             <!-- Tiles are dynamically added here -->
@@ -410,18 +482,51 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- Level Data ---
+            const levels = [
+                { name: 'Level 1', scoreToComplete: 500, speed: 2.5, spawnRate: 900 },
+                { name: 'Level 2', scoreToComplete: 1000, speed: 3.2, spawnRate: 750 },
+                { name: 'Level 3', scoreToComplete: 1500, speed: 4.0, spawnRate: 600 },
+                { name: 'Level 4', scoreToComplete: 2000, speed: 4.8, spawnRate: 500 },
+                { name: 'Level 5', scoreToComplete: 2500, speed: 5.5, spawnRate: 400 }
+            ];
+            let completedLevels = JSON.parse(localStorage.getItem('haarush7CompletedLevels') || '[false,false,false,false,false]');
+            let selectedLevelIndex = 0;
+
             // --- DOM Elements ---
             const welcomeScreen = document.getElementById('welcome-screen');
             const gameScreen = document.getElementById('game-screen');
             const endScreen = document.getElementById('end-screen');
             const backgroundAnimation = document.getElementById('background-animation');
-            
+            const settingsScreen = document.getElementById('settings-screen');
+            const openSettingsBtn = document.getElementById('open-settings-btn');
+            const closeSettingsBtn = document.getElementById('close-settings-btn');
             const imageUpload = document.getElementById('image-upload');
             const playerPhotoPreview = document.getElementById('player-photo-preview');
             const playerPhotoIngame = document.getElementById('player-photo-ingame');
             const startGameBtn = document.getElementById('start-game-btn');
-            
             const songPlaylist = document.getElementById('song-playlist');
+            const backToHomeBtn = document.getElementById('back-to-home-btn');
+            // Level select and complete DOM elements
+            const levelSelectScreen = document.getElementById('level-select-screen');
+            const levelList = document.getElementById('level-list');
+            const backToHomeFromLevelsBtn = document.getElementById('back-to-home-from-levels');
+            const levelCompleteScreen = document.getElementById('level-complete-screen');
+            const levelCompleteMsg = document.getElementById('level-complete-msg');
+            const nextLevelBtn = document.getElementById('next-level-btn');
+            const replayLevelBtn = document.getElementById('replay-level-btn');
+            const toLevelSelectBtn = document.getElementById('to-level-select-btn');
+            // Misses display initialization (must be before any function using it)
+            const gameUi = document.getElementById('game-ui');
+            let missesDisplay = document.getElementById('misses-display');
+            if (!missesDisplay) {
+                missesDisplay = document.createElement('div');
+                missesDisplay.id = 'misses-display';
+                missesDisplay.style.marginLeft = '10px';
+                missesDisplay.style.fontSize = '1.2rem';
+                missesDisplay.style.color = '#FFD700';
+                gameUi.appendChild(missesDisplay);
+            }
             
             const gameArea = document.getElementById('game-area');
             const scoreDisplay = document.getElementById('score-display');
@@ -436,10 +541,10 @@
 
             // --- Game Constants and State ---
             const TILE_HEIGHT = 180;
-            const MAX_MISS_STREAK = 5;
+            const MAX_TOTAL_MISSES = 5;
             let score = 0;
             let combo = 0;
-            let missStreak = 0;
+            let totalMisses = 0;
             let highScore = localStorage.getItem('haarush7HighScore') || 0;
             let tiles = [];
             let gameLoopId;
@@ -471,19 +576,22 @@
                 const gainNode = audioCtx.createGain();
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
                 if (type === 'tap') {
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
-                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    // Percussive bell/pluck sound
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+                    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.18);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.18);
                 } else if (type === 'miss') {
                     oscillator.type = 'square';
                     oscillator.frequency.setValueAtTime(110, audioCtx.currentTime); // A2
                     gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
                 }
                 
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.1);
             };
 
             // --- File Handling ---
@@ -561,7 +669,7 @@
 
             // --- Screen Transitions ---
             const showScreen = (screen) => {
-                [welcomeScreen, gameScreen, endScreen].forEach(s => s.classList.add('hidden'));
+                [welcomeScreen, gameScreen, endScreen, settingsScreen, levelSelectScreen, levelCompleteScreen].forEach(s => s.classList.add('hidden'));
                 screen.classList.remove('hidden');
             };
 
@@ -577,7 +685,7 @@
                 
                 score = 0;
                 combo = 0;
-                missStreak = 0;
+                totalMisses = 0;
                 currentLevel = 1;
                 tileSpeed = 2.5;
                 tileSpawnRate = 900;
@@ -682,9 +790,9 @@
 
             const hit = (tile) => {
                 playSound('tap');
-                score += 10 + combo;
+                score += 5;
                 combo++;
-                missStreak = 0;
+                // Do not reset totalMisses on hit
                 showFeedback("Perfect!");
                 createParticles(tile.element);
                 tile.element.remove();
@@ -695,13 +803,14 @@
             const miss = () => {
                 playSound('miss');
                 combo = 0;
-                missStreak++;
+                totalMisses++;
+                console.log('Total misses:', totalMisses);
                 showFeedback("Miss!");
                 gameArea.classList.add('miss-flash');
                 setTimeout(() => gameArea.classList.remove('miss-flash'), 300);
                 updateUI();
 
-                if (missStreak >= MAX_MISS_STREAK) {
+                if (totalMisses >= MAX_TOTAL_MISSES) {
                     endGame();
                 }
             };
@@ -728,6 +837,7 @@
                 setTimeout(() => scoreDisplay.classList.remove('score-update'), 300);
                 comboDisplay.textContent = `Combo: ${combo}`;
                 levelDisplay.textContent = `Level: ${currentLevel}`;
+                missesDisplay.textContent = `Misses: ${totalMisses} / ${MAX_TOTAL_MISSES}`;
             };
             
             const createParticles = (tileElement) => {
@@ -793,7 +903,10 @@
             };
             
             // --- Event Listeners ---
-            startGameBtn.addEventListener('click', startGame);
+            startGameBtn.addEventListener('click', () => {
+                renderLevelList();
+                showScreen(levelSelectScreen);
+            });
             playAgainBtn.addEventListener('click', () => {
                 showScreen(welcomeScreen);
             });
@@ -806,6 +919,104 @@
                 const touch = e.touches[0];
                 processInput(touch.clientX, touch.clientY);
             }, { passive: false });
+
+            // --- Navigation Logic ---
+            openSettingsBtn.addEventListener('click', () => {
+                showScreen(settingsScreen);
+            });
+            closeSettingsBtn.addEventListener('click', () => {
+                showScreen(welcomeScreen);
+            });
+
+            // --- Back to Home from Game ---
+            backToHomeBtn.addEventListener('click', () => {
+                cancelAnimationFrame(gameLoopId);
+                bgMusic.pause();
+                showScreen(welcomeScreen);
+            });
+
+            // --- Level Selection Logic ---
+            function renderLevelList() {
+                levelList.innerHTML = '';
+                levels.forEach((level, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'upload-button';
+                    btn.textContent = `${level.name} ${completedLevels[idx] ? '✓' : ''}`;
+                    btn.disabled = idx > 0 && !completedLevels[idx-1];
+                    btn.style.background = completedLevels[idx] ? 'linear-gradient(90deg, #38ef7d, #11998e)' : '';
+                    btn.onclick = () => {
+                        selectedLevelIndex = idx;
+                        startGameAtLevel(idx);
+                    };
+                    levelList.appendChild(btn);
+                });
+            }
+
+            // --- Start Game at Selected Level ---
+            function startGameAtLevel(levelIdx) {
+                const level = levels[levelIdx];
+                currentLevel = levelIdx + 1;
+                tileSpeed = level.speed;
+                tileSpawnRate = level.spawnRate;
+                score = 0;
+                combo = 0;
+                totalMisses = 0; // Only reset here
+                lastTime = 0;
+                tiles.forEach(tile => tile.element.remove());
+                tiles = [];
+                updateUI();
+                showScreen(gameScreen);
+                bgMusic.currentTime = 0;
+                bgMusic.play();
+                spawnBackgroundShapes();
+                gameLoopId = requestAnimationFrame(gameLoop);
+                setTimeout(spawnTile, tileSpawnRate);
+                bgMusic.onended = endGame;
+            }
+
+            // --- Level Complete Logic ---
+            function showLevelComplete() {
+                completedLevels[selectedLevelIndex] = true;
+                localStorage.setItem('haarush7CompletedLevels', JSON.stringify(completedLevels));
+                levelCompleteMsg.textContent = `You finished ${levels[selectedLevelIndex].name}!`;
+                showScreen(levelCompleteScreen);
+                // Next level button only enabled if not last level
+                nextLevelBtn.disabled = selectedLevelIndex >= levels.length - 1;
+            }
+            nextLevelBtn.addEventListener('click', () => {
+                if (selectedLevelIndex < levels.length - 1) {
+                    selectedLevelIndex++;
+                    startGameAtLevel(selectedLevelIndex);
+                }
+            });
+            replayLevelBtn.addEventListener('click', () => {
+                startGameAtLevel(selectedLevelIndex);
+            });
+            toLevelSelectBtn.addEventListener('click', () => {
+                renderLevelList();
+                showScreen(levelSelectScreen);
+            });
+
+            // --- End Game: Check for Level Complete ---
+            const oldEndGame = endGame;
+            endGame = function() {
+                cancelAnimationFrame(gameLoopId);
+                bgMusic.pause();
+                if (score >= levels[selectedLevelIndex].scoreToComplete) {
+                    showLevelComplete();
+                } else {
+                    finalScoreDisplay.textContent = score;
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('haarush7HighScore', highScore);
+                        highScoreDisplay.innerHTML = `NEW High Score: ${highScore} <span id="new-high-score-text">🎉</span>`;
+                        celebrate();
+                    } else {
+                        highScoreDisplay.textContent = `High Score: ${highScore}`;
+                    }
+                    showScreen(endScreen);
+                }
+            };
 
             // --- Initial Setup ---
             playerPhotoPreview.style.backgroundImage = `url(${playerData.image})`;
